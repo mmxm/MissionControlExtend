@@ -17,11 +17,11 @@ public class AccessibilityEngine {
     
     private init() {
         // Clear previous log on startup
-        try? "".write(to: URL(fileURLWithPath: "/Users/francois/Documents/Mission control plus/debug.log"), atomically: true, encoding: .utf8)
+        try? "".write(to: URL(fileURLWithPath: "/tmp/MissionControlExtend.log"), atomically: true, encoding: .utf8)
     }
     
     private func logDebug(_ message: String) {
-        let logURL = URL(fileURLWithPath: "/Users/francois/Documents/Mission control plus/debug.log")
+        let logURL = URL(fileURLWithPath: "/tmp/MissionControlExtend.log")
         let line = "\(Date()): \(message)\n"
         if let data = line.data(using: .utf8) {
             if let fileHandle = try? FileHandle(forWritingTo: logURL) {
@@ -177,9 +177,11 @@ public class AccessibilityEngine {
                 return win
             }
             
-            // 3. Fallback: window without title (e.g. calculator, empty Finder), matches app name
-            if winTitle.isEmpty && cleanDesc == winOwner {
-                return win
+            // 3. Fallback: window without title (e.g. calculator, empty Finder, Chrome PWA), matches app name
+            if winTitle.isEmpty {
+                if cleanDesc == winOwner || cleanDesc.localizedCaseInsensitiveContains(winOwner) {
+                    return win
+                }
             }
         }
         

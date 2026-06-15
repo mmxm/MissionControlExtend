@@ -101,7 +101,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         let hasPermissions = AccessibilityEngine.shared.checkAccessibilityPermissions(prompt: false)
         updateMenu()
         
-        let logURL = URL(fileURLWithPath: "/Users/francois/Documents/Mission control plus/debug.log")
+        let logURL = URL(fileURLWithPath: "/tmp/MissionControlExtend.log")
         let logLine = "\(Date()): checkPermissionsAndStart: hasPermissions = \(hasPermissions), isRunning = \(isRunning)\n"
         if let data = logLine.data(using: .utf8) {
             if let fileHandle = try? FileHandle(forWritingTo: logURL) {

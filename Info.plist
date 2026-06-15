@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <key>com.francois.MissionControlExtend</key>
+    <key>CFBundleName</key>
+    <key>MissionControlExtend</key>
+    <key>CFBundleDisplayName</key>
+    <key>Mission Control Extend</key>
+    <key>CFBundlePackageType</key>
+    <key>APPL</key>
+    <key>CFBundleShortVersionString</key>
+    <key>1.0</key>
+    <key>CFBundleVersion</key>
+    <key>1</key>
+    <key>LSUIElement</key>
+    <true/>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+</dict>
+</plist>

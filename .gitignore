@@ -1,0 +1,6 @@
+.DS_Store
+*.app/
+MissionControlExtend
+MissionControlPlus
+debug.log
+*.log

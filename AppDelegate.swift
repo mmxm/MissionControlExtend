@@ -1,4 +1,5 @@
 import Cocoa
+import ServiceManagement
 
 public class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
@@ -40,11 +41,52 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         
         menu.addItem(NSMenuItem.separator())
         
+        let launchItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        launchItem.target = self
+        if #available(macOS 13.0, *) {
+            launchItem.state = isLaunchAtLoginEnabled ? .on : .off
+        } else {
+            launchItem.isEnabled = false
+            launchItem.title = "Launch at Login (macOS 13+ required)"
+        }
+        menu.addItem(launchItem)
+        
+        menu.addItem(NSMenuItem.separator())
+        
         let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
         
         statusItem.menu = menu
+    }
+    
+    private var isLaunchAtLoginEnabled: Bool {
+        if #available(macOS 13.0, *) {
+            return SMAppService.mainApp.status == .enabled
+        }
+        return false
+    }
+    
+    @objc private func toggleLaunchAtLogin(_ sender: NSMenuItem) {
+        if #available(macOS 13.0, *) {
+            let service = SMAppService.mainApp
+            if service.status == .enabled {
+                do {
+                    try service.unregister()
+                    print("Successfully unregistered launch at login service.")
+                } catch {
+                    print("[Error] Failed to unregister launch at login: \(error.localizedDescription)")
+                }
+            } else {
+                do {
+                    try service.register()
+                    print("Successfully registered launch at login service.")
+                } catch {
+                    print("[Error] Failed to register launch at login: \(error.localizedDescription)")
+                }
+            }
+        }
+        updateMenu()
     }
     
     @objc private func handlePermissionsAction() {

@@ -15,21 +15,27 @@ public struct WindowInfo {
 public class AccessibilityEngine {
     public static let shared = AccessibilityEngine()
     
+    public static let logURL: URL = {
+        let libraryURL = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first!
+        let logsDirectory = libraryURL.appendingPathComponent("Logs")
+        try? FileManager.default.createDirectory(at: logsDirectory, withIntermediateDirectories: true, attributes: nil)
+        return logsDirectory.appendingPathComponent("com.francois.MissionControlExtend.log")
+    }()
+    
     private init() {
         // Clear previous log on startup
-        try? "".write(to: URL(fileURLWithPath: "/tmp/MissionControlExtend.log"), atomically: true, encoding: .utf8)
+        try? "".write(to: AccessibilityEngine.logURL, atomically: true, encoding: .utf8)
     }
     
     func logDebug(_ message: String) {
-        let logURL = URL(fileURLWithPath: "/tmp/MissionControlExtend.log")
         let line = "\(Date()): \(message)\n"
         if let data = line.data(using: .utf8) {
-            if let fileHandle = try? FileHandle(forWritingTo: logURL) {
+            if let fileHandle = try? FileHandle(forWritingTo: AccessibilityEngine.logURL) {
                 fileHandle.seekToEndOfFile()
                 fileHandle.write(data)
                 fileHandle.closeFile()
             } else {
-                try? data.write(to: logURL)
+                try? data.write(to: AccessibilityEngine.logURL)
             }
         }
     }

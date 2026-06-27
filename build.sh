@@ -35,6 +35,16 @@ echo "Installing binary and Info.plist..."
 mv "$APP_NAME" "${APP_BUNDLE}/Contents/MacOS/"
 cp Info.plist "${APP_BUNDLE}/Contents/"
 
+# Get version from Git tag, fallback to 1.0.0
+VERSION=$(git describe --tags --abbrev=0 2>/dev/null | tr -d 'v' || echo "1.0.0")
+
+# Get build number from Git commit count, fallback to 1
+BUILD_NUMBER=$(git rev-list --count HEAD 2>/dev/null || echo "1")
+
+echo "Injecting version metadata (Version: $VERSION, Build: $BUILD_NUMBER)..."
+plutil -replace CFBundleShortVersionString -string "$VERSION" "${APP_BUNDLE}/Contents/Info.plist"
+plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "${APP_BUNDLE}/Contents/Info.plist"
+
 echo "Ad-hoc codesigning the application bundle..."
 codesign -s - --force --deep "${APP_BUNDLE}"
 

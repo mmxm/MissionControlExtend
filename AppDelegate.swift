@@ -14,11 +14,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            if #available(macOS 11.0, *) {
-                button.image = NSImage(systemSymbolName: "xmark.circle", accessibilityDescription: "Mission Control Extend")
-            } else {
-                button.title = "✕"
-            }
+            button.image = NSImage(systemSymbolName: "xmark.circle", accessibilityDescription: "Mission Control Extend")
             button.imagePosition = .imageLeft
         }
         updateMenu()
@@ -101,17 +97,7 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         let hasPermissions = AccessibilityEngine.shared.checkAccessibilityPermissions(prompt: false)
         updateMenu()
         
-        let logURL = URL(fileURLWithPath: "/tmp/MissionControlExtend.log")
-        let logLine = "\(Date()): checkPermissionsAndStart: hasPermissions = \(hasPermissions), isRunning = \(isRunning)\n"
-        if let data = logLine.data(using: .utf8) {
-            if let fileHandle = try? FileHandle(forWritingTo: logURL) {
-                fileHandle.seekToEndOfFile()
-                fileHandle.write(data)
-                fileHandle.closeFile()
-            } else {
-                try? data.write(to: logURL)
-            }
-        }
+        AccessibilityEngine.shared.logDebug("checkPermissionsAndStart: hasPermissions = \(hasPermissions), isRunning = \(isRunning)")
         
         if hasPermissions {
             permissionCheckTimer?.invalidate()

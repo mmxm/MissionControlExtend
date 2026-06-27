@@ -1,47 +1,6 @@
 import Cocoa
 
 public class CloseButtonView: NSView {
-    private var isHovered = false {
-        didSet {
-            needsDisplay = true
-        }
-    }
-    
-    public var onClick: (() -> Void)?
-    
-    public override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        setupTrackingArea()
-    }
-    
-    public required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        setupTrackingArea()
-    }
-    
-    private func setupTrackingArea() {
-        let trackingArea = NSTrackingArea(rect: bounds,
-                                          options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-                                          owner: self,
-                                          userInfo: nil)
-        addTrackingArea(trackingArea)
-    }
-    
-    public override func mouseEntered(with event: NSEvent) {
-        isHovered = true
-    }
-    
-    public override func mouseExited(with event: NSEvent) {
-        isHovered = false
-    }
-    
-    public override func mouseUp(with event: NSEvent) {
-        let point = convert(event.locationInWindow, from: nil)
-        if bounds.contains(point) {
-            onClick?()
-        }
-    }
-    
     public override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         
@@ -53,7 +12,7 @@ public class CloseButtonView: NSView {
         
         // Draw white circle
         let buttonRect = bounds.insetBy(dx: 2, dy: 2)
-        context.setFillColor(isHovered ? NSColor(white: 0.92, alpha: 1.0).cgColor : NSColor.white.cgColor)
+        context.setFillColor(NSColor.white.cgColor)
         context.fillEllipse(in: buttonRect)
         context.restoreGState()
         

@@ -1,7 +1,7 @@
 import Cocoa
 
 class CloseButtonPanel: NSPanel {
-    init(contentRect: NSRect, onClick: @escaping () -> Void) {
+    init(contentRect: NSRect) {
         super.init(contentRect: contentRect,
                    styleMask: [.borderless, .nonactivatingPanel],
                    backing: .buffered,
@@ -13,10 +13,7 @@ class CloseButtonPanel: NSPanel {
         self.hasShadow = false
         self.ignoresMouseEvents = true // Pass click events to the low-level event tap
         self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        
-        let buttonView = CloseButtonView(frame: NSRect(origin: .zero, size: contentRect.size))
-        buttonView.onClick = onClick
-        self.contentView = buttonView
+        self.contentView = CloseButtonView(frame: NSRect(origin: .zero, size: contentRect.size))
     }
 }
 
@@ -66,11 +63,9 @@ public class OverlayWindowController {
         let currentWindowIDs = Set(thumbnails.map { $0.window.windowID })
         
         // Remove overlays for windows that no longer exist
-        for (winID, panel) in buttonPanels {
-            if !currentWindowIDs.contains(winID) {
-                panel.close()
-                buttonPanels.removeValue(forKey: winID)
-            }
+        buttonPanels.keys.filter { !currentWindowIDs.contains($0) }.forEach { winID in
+            buttonPanels[winID]?.close()
+            buttonPanels.removeValue(forKey: winID)
         }
         
         // Add or move overlays for each window thumbnail
@@ -96,7 +91,7 @@ public class OverlayWindowController {
                 panel.setFrame(buttonFrame, display: true)
             } else {
                 // Create a visual indicator panel (clicks are handled by the low-level event tap)
-                let panel = CloseButtonPanel(contentRect: buttonFrame) {}
+                let panel = CloseButtonPanel(contentRect: buttonFrame)
                 panel.orderFront(nil)
                 buttonPanels[winID] = panel
             }
@@ -171,6 +166,12 @@ public class OverlayWindowController {
             options: .defaultTap,
             eventsOfInterest: CGEventMask(eventMask),
             callback: { (proxy, type, event, refcon) -> Unmanaged<CGEvent>? in
+                if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                    if let tap = OverlayWindowController.shared.eventTap {
+                        CGEvent.tapEnable(tap: tap, enable: true)
+                        print("CGEventTap re-enabled after event: \(type.rawValue)")
+                    }
+                }
                 if type == .leftMouseDown {
                     let location = event.location
                     if OverlayWindowController.shared.handleMouseClick(at: location) {

@@ -20,7 +20,7 @@ public class AccessibilityEngine {
         try? "".write(to: URL(fileURLWithPath: "/tmp/MissionControlExtend.log"), atomically: true, encoding: .utf8)
     }
     
-    private func logDebug(_ message: String) {
+    func logDebug(_ message: String) {
         let logURL = URL(fileURLWithPath: "/tmp/MissionControlExtend.log")
         let line = "\(Date()): \(message)\n"
         if let data = line.data(using: .utf8) {
@@ -56,7 +56,7 @@ public class AccessibilityEngine {
             guard app.activationPolicy == .regular else { continue }
             
             let appPID = app.processIdentifier
-            let appName = app.localizedName ?? ""
+            let appName = (app.localizedName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let appRef = AXUIElementCreateApplication(appPID)
             
             var windowsValue: AnyObject?
@@ -79,7 +79,7 @@ public class AccessibilityEngine {
                 
                 var titleValue: AnyObject?
                 AXUIElementCopyAttributeValue(winRef, kAXTitleAttribute as CFString, &titleValue)
-                let title = titleValue as? String ?? ""
+                let title = (titleValue as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                 
                 var posValue: AnyObject?
                 var pos = CGPoint.zero
@@ -128,8 +128,8 @@ public class AccessibilityEngine {
             return
         }
         
-        let desc = getElementDescription(element)
-        let title = getElementTitle(element)
+        let desc = getStringAttribute(element, kAXDescriptionAttribute)
+        let title = getStringAttribute(element, kAXTitleAttribute)
         
         if !desc.isEmpty || !title.isEmpty {
             logDebug("findThumbnailsRecursive: Inspected element Role: \(role), Title: '\(title)', Desc: '\(desc)'")
@@ -162,24 +162,19 @@ public class AccessibilityEngine {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         
         for win in openWindows {
-            let winTitle = win.title.trimmingCharacters(in: .whitespacesAndNewlines)
-            let winOwner = win.ownerName.trimmingCharacters(in: .whitespacesAndNewlines)
-            
             // 1. Exact match: "Window Title, App Name" (typical macOS format)
-            if !winTitle.isEmpty {
-                if cleanDesc == "\(winTitle), \(winOwner)" || cleanDesc == "\(winOwner) — \(winTitle)" || cleanDesc == "\(winOwner) - \(winTitle)" {
+            if !win.title.isEmpty {
+                if cleanDesc == "\(win.title), \(win.ownerName)" || cleanDesc == "\(win.ownerName) — \(win.title)" || cleanDesc == "\(win.ownerName) - \(win.title)" {
                     return win
                 }
-            }
-            
-            // 2. Substring match (thumbnail contains window title and app name)
-            if !winTitle.isEmpty && cleanDesc.contains(winTitle) && cleanDesc.contains(winOwner) {
-                return win
-            }
-            
-            // 3. Fallback: window without title (e.g. calculator, empty Finder, Chrome PWA), matches app name
-            if winTitle.isEmpty {
-                if cleanDesc == winOwner || cleanDesc.localizedCaseInsensitiveContains(winOwner) {
+                
+                // 2. Substring match (thumbnail contains window title and app name)
+                if cleanDesc.contains(win.title) && cleanDesc.contains(win.ownerName) {
+                    return win
+                }
+            } else {
+                // 3. Fallback: window without title (e.g. calculator, empty Finder, Chrome PWA)
+                if cleanDesc == win.ownerName || cleanDesc.localizedCaseInsensitiveContains(win.ownerName) {
                     return win
                 }
             }
@@ -187,14 +182,13 @@ public class AccessibilityEngine {
         
         // 4. Prefix/Contains match (handles truncated titles in Mission Control, like Apple Notes)
         for win in openWindows {
-            let winTitle = win.title.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !winTitle.isEmpty && !cleanDesc.isEmpty {
+            if !win.title.isEmpty && !cleanDesc.isEmpty {
                 // Check if the window title starts with the thumbnail title, or vice-versa
-                if winTitle.hasPrefix(cleanDesc) || cleanDesc.hasPrefix(winTitle) {
+                if win.title.hasPrefix(cleanDesc) || cleanDesc.hasPrefix(win.title) {
                     return win
                 }
                 // Substring fallback for longer descriptions
-                if cleanDesc.count >= 4 && winTitle.localizedCaseInsensitiveContains(cleanDesc) {
+                if cleanDesc.count >= 4 && win.title.localizedCaseInsensitiveContains(cleanDesc) {
                     return win
                 }
             }
@@ -202,8 +196,7 @@ public class AccessibilityEngine {
         
         // 5. Soft match by title only
         for win in openWindows {
-            let winTitle = win.title.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !winTitle.isEmpty && (cleanDesc == winTitle || cleanTitle == winTitle) {
+            if !win.title.isEmpty && (cleanDesc == win.title || cleanTitle == win.title) {
                 return win
             }
         }
@@ -272,53 +265,36 @@ public class AccessibilityEngine {
     
     // Accessibility attribute retrieval helpers
     
-    private func getElementDescription(_ element: AXUIElement) -> String {
-        var desc: AnyObject?
-        AXUIElementCopyAttributeValue(element, kAXDescriptionAttribute as CFString, &desc)
-        return desc as? String ?? ""
-    }
-    
-    private func getElementTitle(_ element: AXUIElement) -> String {
-        var title: AnyObject?
-        AXUIElementCopyAttributeValue(element, kAXTitleAttribute as CFString, &title)
-        return title as? String ?? ""
+    private func getStringAttribute(_ element: AXUIElement, _ attribute: String) -> String {
+        var value: AnyObject?
+        AXUIElementCopyAttributeValue(element, attribute as CFString, &value)
+        return value as? String ?? ""
     }
     
     private func getPosition(of element: AXUIElement) -> CGPoint? {
-        var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &value) == .success else { return nil }
-        var point = CGPoint.zero
-        AXValueGetValue(value as! AXValue, .cgPoint, &point)
-        return point
+        var v: AnyObject?, p = CGPoint.zero
+        guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &v) == .success else { return nil }
+        AXValueGetValue(v as! AXValue, .cgPoint, &p)
+        return p
     }
     
     private func getSize(of element: AXUIElement) -> CGSize? {
-        var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &value) == .success else { return nil }
-        var size = CGSize.zero
-        AXValueGetValue(value as! AXValue, .cgSize, &size)
-        return size
+        var v: AnyObject?, s = CGSize.zero
+        guard AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &v) == .success else { return nil }
+        AXValueGetValue(v as! AXValue, .cgSize, &s)
+        return s
     }
     
     private func findCloseButton(in windowElement: AXUIElement) -> AXUIElement? {
-        var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(windowElement, kAXChildrenAttribute as CFString, &value) == .success,
-              let children = value as? [AXUIElement] else {
-            return nil
-        }
+        var val: AnyObject?
+        guard AXUIElementCopyAttributeValue(windowElement, kAXChildrenAttribute as CFString, &val) == .success,
+              let children = val as? [AXUIElement] else { return nil }
         
-        for child in children {
-            var role: AnyObject?
+        return children.first { child in
+            var role: AnyObject?, subrole: AnyObject?
             AXUIElementCopyAttributeValue(child, kAXRoleAttribute as CFString, &role)
-            var subrole: AnyObject?
             AXUIElementCopyAttributeValue(child, kAXSubroleAttribute as CFString, &subrole)
-            
-            if let roleStr = role as? String, roleStr == kAXButtonRole {
-                if let subroleStr = subrole as? String, subroleStr == kAXCloseButtonSubrole {
-                    return child
-                }
-            }
+            return (role as? String) == kAXButtonRole && (subrole as? String) == kAXCloseButtonSubrole
         }
-        return nil
     }
 }

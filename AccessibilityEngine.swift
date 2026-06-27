@@ -137,11 +137,11 @@ public class AccessibilityEngine {
         let desc = getStringAttribute(element, kAXDescriptionAttribute)
         let title = getStringAttribute(element, kAXTitleAttribute)
         
-        if !desc.isEmpty || !title.isEmpty {
+        if !desc.isEmpty || !title.isEmpty || role == "AXButton" {
             logDebug("findThumbnailsRecursive: Inspected element Role: \(role), Title: '\(title)', Desc: '\(desc)'")
-            if let matchedWindow = matchElement(element, description: desc, title: title, openWindows: openWindows) {
-                if let pos = getPosition(of: element), let size = getSize(of: element) {
-                    let bounds = CGRect(origin: pos, size: size)
+            if let pos = getPosition(of: element), let size = getSize(of: element) {
+                let bounds = CGRect(origin: pos, size: size)
+                if let matchedWindow = matchElement(element, description: desc, title: title, bounds: bounds, openWindows: openWindows) {
                     logDebug("findThumbnailsRecursive: Match found! App: \(matchedWindow.ownerName), Title: '\(matchedWindow.title)', Bounds: \(bounds)")
                     // Filter out tiny hover zones or off-screen elements
                     if bounds.width > 50 && bounds.height > 50 {
@@ -163,30 +163,55 @@ public class AccessibilityEngine {
     }
     
     // Performs a robust match between the Dock element description and open windows
-    private func matchElement(_ element: AXUIElement, description: String, title: String, openWindows: [WindowInfo]) -> WindowInfo? {
+    private func matchElement(_ element: AXUIElement, description: String, title: String, bounds: CGRect, openWindows: [WindowInfo]) -> WindowInfo? {
         let cleanDesc = description.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         
+        // 1. Ultimate Fallback: Empty description and title (e.g. Pages launcher, unnamed windows)
+        if cleanDesc.isEmpty && cleanTitle.isEmpty {
+            let thumbRatio = bounds.width / bounds.height
+            
+            // Filter open windows on the same screen (checking Y coordinate sign)
+            // and with matching aspect ratio
+            let candidates = openWindows.filter { win in
+                guard win.title.isEmpty else { return false }
+                
+                let sameScreen = (bounds.minY < 0) == (win.bounds.minY < 0)
+                guard sameScreen else { return false }
+                
+                let winRatio = win.bounds.width / win.bounds.height
+                return abs(thumbRatio - winRatio) < 0.02
+            }
+            
+            if candidates.count == 1 {
+                return candidates.first
+            }
+            
+            if !candidates.isEmpty {
+                return candidates.min { abs($0.bounds.minX - bounds.minX) < abs($1.bounds.minX - bounds.minX) }
+            }
+        }
+        
         for win in openWindows {
-            // 1. Exact match: "Window Title, App Name" (typical macOS format)
+            // 2. Exact match: "Window Title, App Name" (typical macOS format)
             if !win.title.isEmpty {
                 if cleanDesc == "\(win.title), \(win.ownerName)" || cleanDesc == "\(win.ownerName) — \(win.title)" || cleanDesc == "\(win.ownerName) - \(win.title)" {
                     return win
                 }
                 
-                // 2. Substring match (thumbnail contains window title and app name)
+                // 3. Substring match (thumbnail contains window title and app name)
                 if cleanDesc.contains(win.title) && cleanDesc.contains(win.ownerName) {
                     return win
                 }
             } else {
-                // 3. Fallback: window without title (e.g. calculator, empty Finder, Chrome PWA)
+                // 4. Fallback: window without title (e.g. calculator, empty Finder, Chrome PWA)
                 if cleanDesc == win.ownerName || cleanDesc.localizedCaseInsensitiveContains(win.ownerName) {
                     return win
                 }
             }
         }
         
-        // 4. Prefix/Contains match (handles truncated titles in Mission Control, like Apple Notes)
+        // 5. Prefix/Contains match (handles truncated titles in Mission Control, like Apple Notes)
         for win in openWindows {
             if !win.title.isEmpty && !cleanDesc.isEmpty {
                 // Check if the window title starts with the thumbnail title, or vice-versa
@@ -200,7 +225,7 @@ public class AccessibilityEngine {
             }
         }
         
-        // 5. Soft match by title only
+        // 6. Soft match by title only
         for win in openWindows {
             if !win.title.isEmpty && (cleanDesc == win.title || cleanTitle == win.title) {
                 return win
